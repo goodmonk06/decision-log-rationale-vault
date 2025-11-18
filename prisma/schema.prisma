@@ -26,21 +26,54 @@ enum EntityType {
   OTHER
 }
 
-model Decision {
-  id                 String           @id @default(cuid())
-  title              String
-  descriptionMarkdown String?         @db.Text
-  decidedAt          DateTime         @default(now())
-  status             DecisionStatus   @default(PROPOSED)
-  metaJson           Json?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+enum HistoryAction {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  OPTION_ADDED
+  OPTION_CHOSEN
+  TAG_ADDED
+  TAG_REMOVED
+  COMMENT_ADDED
+}
 
-  options            DecisionOption[]
-  links              DecisionLink[]
+model User {
+  id               String             @id @default(cuid())
+  email            String             @unique
+  name             String
+  avatarUrl        String?
+  metaJson         Json?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  decisions        Decision[]
+  comments         DecisionComment[]
+  history          DecisionHistory[]
+
+  @@index([email])
+}
+
+model Decision {
+  id                  String              @id @default(cuid())
+  title               String
+  descriptionMarkdown String?             @db.Text
+  decidedAt           DateTime            @default(now())
+  status              DecisionStatus      @default(PROPOSED)
+  metaJson            Json?
+  createdById         String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  createdBy           User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  options             DecisionOption[]
+  links               DecisionLink[]
+  tags                DecisionTagAssignment[]
+  comments            DecisionComment[]
+  history             DecisionHistory[]
 
   @@index([decidedAt])
   @@index([status])
+  @@index([createdById])
 }
 
 model DecisionOption {
@@ -71,4 +104,87 @@ model DecisionLink {
 
   @@index([decisionId])
   @@index([entityType, entityIdOrRef])
+}
+
+model Tag {
+  id          String                 @id @default(cuid())
+  name        String                 @unique
+  slug        String                 @unique
+  description String?
+  color       String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  decisions   DecisionTagAssignment[]
+
+  @@index([slug])
+}
+
+model DecisionTagAssignment {
+  id         String   @id @default(cuid())
+  decisionId String
+  tagId      String
+  createdAt  DateTime @default(now())
+
+  decision   Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([decisionId, tagId])
+  @@index([decisionId])
+  @@index([tagId])
+}
+
+model DecisionComment {
+  id         String   @id @default(cuid())
+  decisionId String
+  userId     String?
+  content    String   @db.Text
+  parentId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  decision   Decision          @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent     DecisionComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    DecisionComment[] @relation("CommentReplies")
+
+  @@index([decisionId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model DecisionHistory {
+  id           String        @id @default(cuid())
+  decisionId   String
+  userId       String?
+  action       HistoryAction
+  fieldName    String?
+  oldValue     String?       @db.Text
+  newValue     String?       @db.Text
+  metaJson     Json?
+  createdAt    DateTime      @default(now())
+
+  decision     Decision      @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([decisionId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model DecisionTemplate {
+  id                  String   @id @default(cuid())
+  name                String
+  description         String?  @db.Text
+  titleTemplate       String
+  descriptionTemplate String?  @db.Text
+  optionsTemplate     Json?
+  tagsTemplate        Json?
+  metaJson            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([name])
 }

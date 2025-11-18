@@ -1,285 +1,499 @@
 # Decision Log Rationale Vault
 
-A comprehensive decision tracking system built with Next.js, TypeScript, Prisma, and PostgreSQL. This application helps teams record, track, and explore important technical and organizational decisions along with their context, options considered, and rationale.
+> **Production-grade decision tracking and organizational knowledge management**
+
+A comprehensive system for capturing, tracking, and exploring important technical and business decisions. Built to make past reasoning accessible, searchable, and actionable.
 
 ## Features
 
-### 1. Decision Management
-- **Create & Track Decisions**: Record important decisions with full context
-- **Status Tracking**: Mark decisions as Proposed, Decided, or Deprecated
-- **Rich Markdown Support**: Use markdown for detailed descriptions and rationale
-- **Timestamps**: Automatic tracking of creation and decision dates
+### Core Decision Management
+- ✅ **Rich decision tracking** with markdown descriptions, status, and timestamps
+- ✅ **Options framework** to document alternatives with pros/cons analysis
+- ✅ **Entity linking** to connect decisions across projects, people, and repositories
+- ✅ **Tag-based organization** for filtering and discovery
+- ✅ **Threaded comments** for stakeholder discussions
+- ✅ **Audit history** tracking all changes over time
+- ✅ **User attribution** for accountability and context
 
-### 2. Options & Rationale
-- **Multiple Options**: Document all options considered for each decision
-- **Pros & Cons**: Record advantages and disadvantages for each option
-- **Chosen Indicator**: Mark which option(s) were ultimately chosen
-- **Comparison View**: Easy visual comparison of different options
+### Developer Experience
+- ✅ **Type-safe** end-to-end with TypeScript and Prisma
+- ✅ **Validated inputs** using Zod schemas
+- ✅ **Comprehensive error handling** with structured responses
+- ✅ **Docker support** for easy local development and deployment
+- ✅ **Full test coverage** with Vitest
+- ✅ **Rich seed data** for immediate exploration
 
-### 3. Entity Linking
-- **Link to Related Entities**: Connect decisions to:
-  - Projects
-  - People
-  - Repositories
-  - Other entities
-- **Contextual Metadata**: Attach additional metadata to each link
+### Extensibility
+- ✅ **Event-driven architecture** for reactive workflows
+- ✅ **Adapter pattern** for pluggable integrations
+- ✅ **Structured logging** and metrics
+- ✅ **Clean extension points** for ecosystem integration
 
-### 4. Timeline & Discovery
-- **Timeline View**: Chronological visualization of all decisions
-- **Full-Text Search**: Search across decision titles and descriptions
-- **Filtering**: Filter decisions by status and other criteria
-- **Detail Pages**: Rich detail view for each decision
-
-## Tech Stack
-
-- **Frontend**: Next.js 16 (App Router) + React 19
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: PostgreSQL
-- **ORM**: Prisma
-- **Markdown**: react-markdown
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 20+ 
+- Node.js 20+
 - PostgreSQL 14+
-- npm or yarn
+- Docker & Docker Compose (optional)
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd decision-log-rationale-vault
-   ```
+```bash
+# Clone repository
+git clone <repository-url>
+cd decision-log-rationale-vault
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+# Install dependencies
+npm install
 
-3. Set up your environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` and configure your database connection:
-   ```
-   DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
-   ```
+# Set up environment
+cp .env.example .env
+# Edit .env with your DATABASE_URL
 
-4. Run database migrations:
-   ```bash
-   npm run db:push
-   ```
+# Initialize database
+npm run db:push
+npm run db:seed
 
-5. Seed the database with example data:
-   ```bash
-   npm run db:seed
-   ```
+# Start development server
+npm run dev
+```
 
-6. Start the development server:
-   ```bash
-   npm run dev
-   ```
+Visit [http://localhost:3000](http://localhost:3000)
 
-7. Open [http://localhost:3000](http://localhost:3000) in your browser
+### Docker Quick Start
 
-## Database Schema
+```bash
+# Start everything with Docker
+docker compose up
 
-### Decision
-- `id`: Unique identifier
-- `title`: Decision title
-- `descriptionMarkdown`: Full context and description (markdown)
-- `decidedAt`: When the decision was made
-- `status`: PROPOSED | DECIDED | DEPRECATED
-- `metaJson`: Additional metadata (JSON)
+# In another terminal, seed the database
+docker compose exec app npm run db:seed
+```
 
-### DecisionOption
-- `id`: Unique identifier
-- `decisionId`: Reference to parent decision
-- `title`: Option title
-- `prosMarkdown`: Advantages (markdown)
-- `consMarkdown`: Disadvantages (markdown)
-- `chosen`: Whether this option was selected
+## Tech Stack
 
-### DecisionLink
-- `id`: Unique identifier
-- `decisionId`: Reference to parent decision
-- `entityType`: PROJECT | PERSON | REPO | OTHER
-- `entityIdOrRef`: Entity identifier or reference
-- `metaJson`: Additional link metadata (JSON)
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript 5
+- **Database**: PostgreSQL 16 + Prisma ORM
+- **Validation**: Zod
+- **Testing**: Vitest
+- **Styling**: Tailwind CSS
+- **Markdown**: react-markdown
 
-## API Routes
+## Domain Model
+
+### Entities
+
+```
+User
+├── email, name, avatar
+├── creates Decisions
+├── writes Comments
+└── tracked in History
+
+Decision
+├── title, description, status, decidedAt
+├── has many Options
+├── has many Links (to projects, people, repos)
+├── has many Tags
+├── has many Comments
+├── has change History
+└── created by User
+
+DecisionOption
+├── title, pros, cons, chosen
+└── belongs to Decision
+
+Tag
+├── name, slug, color, description
+└── assigned to many Decisions
+
+DecisionComment
+├── content, createdAt
+├── belongs to Decision
+├── written by User
+└── can have nested replies
+
+DecisionHistory
+├── action, fieldName, oldValue, newValue
+├── tracks all changes to Decision
+└── created by User
+
+DecisionTemplate
+├── name, description
+├── title/description templates
+└── reusable decision structures
+```
+
+### Relationships
+
+```
+User ──(creates)──> Decision
+User ──(writes)──> Comment
+Decision ──(has many)──> Option
+Decision ──(has many)──> Link
+Decision ──(tagged with)──> Tag
+Decision ──(has many)──> Comment
+Decision ──(tracked in)──> History
+Comment ──(can have)──> Replies
+```
+
+## API Documentation
 
 ### Decisions
-- `GET /api/decisions` - List all decisions (supports search & filtering)
-- `POST /api/decisions` - Create a new decision
-- `GET /api/decisions/[id]` - Get a specific decision
-- `PUT /api/decisions/[id]` - Update a decision
-- `DELETE /api/decisions/[id]` - Delete a decision
 
-### Options
-- `POST /api/options` - Create a new option
-- `PUT /api/options/[id]` - Update an option
-- `DELETE /api/options/[id]` - Delete an option
+```bash
+# List all decisions
+GET /api/decisions?search=postgres&status=DECIDED&limit=20
 
-### Links
-- `POST /api/links` - Create a new link
-- `PUT /api/links/[id]` - Update a link
-- `DELETE /api/links/[id]` - Delete a link
+# Get a decision
+GET /api/decisions/:id
 
-## Available Scripts
+# Create a decision
+POST /api/decisions
+{
+  "title": "Use PostgreSQL",
+  "descriptionMarkdown": "## Context\n...",
+  "status": "DECIDED",
+  "options": [...],
+  "links": [...]
+}
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run db:push` - Push schema to database
-- `npm run db:migrate` - Create and apply migrations
-- `npm run db:seed` - Seed database with example data
-- `npm run db:studio` - Open Prisma Studio
+# Update a decision
+PUT /api/decisions/:id
 
-## Project Structure
+# Delete a decision
+DELETE /api/decisions/:id
 
+# Get decision history
+GET /api/decisions/:id/history
 ```
-decision-log-rationale-vault/
-├── prisma/
-│   ├── schema.prisma          # Database schema
-│   └── seed.ts                # Seed data
-├── src/
-│   ├── app/
-│   │   ├── api/               # API routes
-│   │   ├── decisions/         # Decision pages
-│   │   ├── search/            # Search page
-│   │   └── page.tsx           # Home/timeline page
-│   ├── components/            # React components
-│   ├── lib/                   # Utilities (Prisma client)
-│   └── types/                 # TypeScript types
-└── package.json
+
+### Tags
+
+```bash
+# List all tags
+GET /api/tags
+
+# Create a tag
+POST /api/tags
+{
+  "name": "Architecture",
+  "description": "System design decisions",
+  "color": "#3B82F6"
+}
+
+# Assign tag to decision
+POST /api/tags/assign
+{
+  "decisionId": "...",
+  "tagId": "..."
+}
+
+# Remove tag from decision
+DELETE /api/tags/assign
 ```
+
+### Comments
+
+```bash
+# Create a comment
+POST /api/comments
+{
+  "decisionId": "...",
+  "content": "Great decision!",
+  "parentId": "..." // optional, for replies
+}
+
+# Update a comment
+PUT /api/comments/:id
+
+# Delete a comment
+DELETE /api/comments/:id
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for complete API reference.
+
+## Vertical Slices
+
+### 1. Decision Lifecycle
+
+Create → Add Options → Tag → Discuss → Decide → Track Changes
+
+```typescript
+// Create decision
+const decision = await fetch('/api/decisions', {
+  method: 'POST',
+  body: JSON.stringify({
+    title: 'Use GraphQL',
+    status: 'PROPOSED',
+    options: [
+      { title: 'GraphQL', pros: '...', cons: '...' },
+      { title: 'REST', pros: '...', cons: '...' },
+    ],
+  }),
+})
+
+// Assign tags
+await fetch('/api/tags/assign', {
+  method: 'POST',
+  body: JSON.stringify({
+    decisionId: decision.id,
+    tagId: architectureTag.id,
+  }),
+})
+
+// Add comments
+await fetch('/api/comments', {
+  method: 'POST',
+  body: JSON.stringify({
+    decisionId: decision.id,
+    content: 'I prefer GraphQL for its flexibility',
+  }),
+})
+
+// Update status
+await fetch(`/api/decisions/${decision.id}`, {
+  method: 'PUT',
+  body: JSON.stringify({ status: 'DECIDED' }),
+})
+
+// View history
+const history = await fetch(`/api/decisions/${decision.id}/history`)
+```
+
+### 2. Tag-Based Organization
+
+Create Tags → Assign to Decisions → Filter by Tags
+
+### 3. Collaborative Decision Making
+
+Comment → Reply → Discuss → Reach Consensus
+
+### 4. Decision Archaeology
+
+View History → Compare Versions → Understand Evolution
+
+## Extension & Integration
+
+The vault provides clean extension points for integration into larger systems.
+
+### Event System
+
+```typescript
+import { eventEmitter } from '@/lib/events'
+
+// Subscribe to domain events
+eventEmitter.on('decision.created', async (event) => {
+  await notifySlack(event.payload.decisionId)
+  await indexInSearch(event.payload)
+})
+
+eventEmitter.on('tag.assigned', async (event) => {
+  await updateKnowledgeGraph(event.payload)
+})
+```
+
+### Adapters
+
+```typescript
+import { registerAdapter } from '@/lib/adapters'
+import { SlackNotificationAdapter } from './my-slack-adapter'
+
+// Swap default adapters
+registerAdapter('notification', new SlackNotificationAdapter())
+registerAdapter('search', new ElasticsearchAdapter())
+registerAdapter('export', new PDFExportAdapter())
+```
+
+See [docs/INTEGRATION.md](docs/INTEGRATION.md) for comprehensive integration recipes.
+
+## Development
+
+### Scripts
+
+```bash
+npm run dev              # Start development server
+npm run build            # Build for production
+npm run start            # Start production server
+npm run lint             # Lint code
+npm run typecheck        # Type check
+npm run test             # Run tests
+npm run test:watch       # Watch mode
+npm run test:ui          # Test UI
+
+# Database
+npm run db:generate      # Generate Prisma client
+npm run db:push          # Push schema changes
+npm run db:migrate       # Create migration
+npm run db:seed          # Seed database
+npm run db:studio        # Open Prisma Studio
+npm run db:reset         # Reset database
+
+# Docker
+npm run docker:build     # Build image
+npm run docker:up        # Start containers
+npm run docker:down      # Stop containers
+npm run docker:logs      # View app logs
+```
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# With UI
+npm run test:ui
+
+# Coverage
+npm test -- --coverage
+```
+
+## Deployment
+
+### Environment Variables
+
+```bash
+DATABASE_URL="postgresql://user:pass@host:5432/db"
+NODE_ENV="production"
+```
+
+### Docker Production
+
+```bash
+# Build and deploy
+docker compose -f docker-compose.prod.yml up -d
+
+# Run migrations
+docker compose exec app npm run db:migrate:deploy
+
+# Seed production data
+docker compose exec app npm run db:seed
+```
+
+### Vercel/Netlify
+
+Compatible with serverless deployments. Configure:
+- Database connection (use connection pooling)
+- Environment variables
+- Build command: `npm run build`
+- Output directory: `.next`
 
 ## Connection to org-knowledge-graph-hub
 
-This Decision Log Vault serves as a specialized node in a broader **organizational knowledge graph ecosystem**. It can integrate with an `org-knowledge-graph-hub` in several ways:
+This vault serves as a **specialized node** in a broader organizational knowledge graph:
 
-### 1. Entity Linking
-The DecisionLink model allows decisions to reference entities managed by other systems:
-- **Projects** from project management tools
-- **People** from HR/directory systems
-- **Repositories** from code hosting platforms
-- **Other** decisions, documents, or artifacts
+### As a Data Source
 
-### 2. Knowledge Graph Integration Patterns
+Decisions become graph nodes with relationships:
 
-#### As a Data Source
-The vault can export its data to feed into a central knowledge graph:
-```typescript
-// Example: Decision nodes become graph nodes
-{
-  type: 'Decision',
-  id: decision.id,
-  title: decision.title,
-  status: decision.status,
-  links: [
-    { type: 'RELATES_TO', targetType: 'Project', targetId: 'proj-123' },
-    { type: 'DECIDED_BY', targetType: 'Person', targetId: 'person-456' },
-    { type: 'AFFECTS', targetType: 'Repository', targetId: 'repo-789' }
-  ]
-}
-```
-
-#### As a Consumer
-The vault can query the knowledge graph to:
-- Discover related decisions based on entity relationships
-- Surface relevant context from connected systems
-- Provide recommendations for decision makers
-- Track decision impact across the organization
-
-### 3. Integration Points
-
-#### API-First Design
-All decision data is accessible via REST APIs, making it easy to:
-- Sync with a central graph database (Neo4j, TigerGraph, etc.)
-- Build ETL pipelines to populate the knowledge graph
-- Create webhooks for real-time updates
-
-#### Entity Type Extensibility
-The `EntityType` enum and `metaJson` fields allow flexible linking:
-```prisma
-enum EntityType {
-  PROJECT
-  PERSON
-  REPO
-  OTHER
-}
-```
-
-Add custom metadata to links:
-```json
-{
-  "sourceSystem": "jira",
-  "externalId": "PROJ-123",
-  "lastSync": "2025-03-15T10:00:00Z"
-}
-```
-
-### 4. Future Enhancements for Graph Integration
-
-- **GraphQL API**: Add a GraphQL layer for more flexible querying
-- **Webhook Support**: Emit events when decisions change for real-time sync
-- **Bidirectional Sync**: Allow the knowledge graph to push related context back
-- **Visualization**: Build interactive graph visualizations showing decision relationships
-- **Impact Analysis**: Trace decision impact through the knowledge graph
-
-### 5. Example Knowledge Graph Queries
-
-Once integrated, you could run queries like:
-
-**"Find all decisions related to the Auth Service project"**
 ```cypher
-MATCH (d:Decision)-[:RELATES_TO]->(p:Project {name: 'Auth Service'})
-RETURN d
+// Example Neo4j schema
+(d:Decision)-[:RELATES_TO]->(p:Project)
+(d:Decision)-[:DECIDED_BY]->(u:User)
+(d:Decision)-[:HAS_TAG]->(t:Tag)
+(d:Decision)-[:AFFECTS]->(r:Repository)
 ```
 
-**"Show decision history for decisions made by the Platform Team"**
-```cypher
-MATCH (d:Decision)-[:DECIDED_BY]->(person:Person)-[:MEMBER_OF]->(team:Team {name: 'Platform Team'})
-RETURN d ORDER BY d.decidedAt DESC
+### As a Consumer
+
+Query the knowledge graph to:
+- Discover related decisions
+- Surface relevant context
+- Provide recommendations
+- Track impact across the organization
+
+### Integration Points
+
+1. **Entity Links**: Connect decisions to graph entities
+2. **Event Stream**: Feed events into graph update pipeline
+3. **Query API**: Fetch related decisions from graph
+4. **Bidirectional Sync**: Keep vault and graph in sync
+
+See [docs/INTEGRATION.md#knowledge-graph-integration](docs/INTEGRATION.md#knowledge-graph-integration) for detailed recipes.
+
+## Architecture
+
+High-level architecture:
+
+```
+┌──────────────────────────────────────────────────┐
+│              Client Layer                         │
+│   (Next.js Pages, API Consumers)                 │
+└─────────────┬────────────────────────────────────┘
+              │
+┌─────────────┴────────────────────────────────────┐
+│           API + Validation Layer                  │
+│   (Zod validation, error handling)               │
+└─────────────┬────────────────────────────────────┘
+              │
+┌─────────────┴────────────────────────────────────┐
+│           Service Layer                           │
+│   (Business logic, events, logging)              │
+└─────────────┬────────────────────────────────────┘
+              │
+┌─────────────┴────────────────────────────────────┐
+│           Data Layer (Prisma + PostgreSQL)        │
+└──────────────────────────────────────────────────┘
 ```
 
-**"Find deprecated decisions that affect active repositories"**
-```cypher
-MATCH (d:Decision {status: 'DEPRECATED'})-[:AFFECTS]->(r:Repository {status: 'active'})
-RETURN d, r
-```
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for complete documentation.
 
-## Design Principles
+## Demo Data
 
-### Explorable Past Decisions
-The primary goal is to make past decisions **discoverable and understandable**:
+After seeding, explore:
 
-1. **Context is King**: Every decision includes rich markdown context
-2. **Options Matter**: Document what was *not* chosen and why
-3. **Links Provide Context**: Connect decisions to the broader org ecosystem
-4. **Timeline View**: Understand decision evolution over time
-5. **Search First**: Full-text search makes decisions findable
+- **5 decisions** spanning different domains (architecture, security, devops)
+- **6 tags** for organization (Architecture, Database, Security, etc.)
+- **3 users** with different roles
+- **Comments and discussions** on key decisions
+- **Decision templates** for common patterns
+- **Full audit history** of changes
 
-### Clarity of Structure
-- Clean domain model (Decision, Option, Link)
-- Type-safe TypeScript throughout
-- RESTful API design
-- Server-side rendering for performance
-- Responsive, accessible UI
+Demo users:
+- alice@example.com - Technical Lead
+- bob@example.com - Engineering Manager
+- carol@example.com - Product Manager
+
+## Roadmap
+
+### Phase 4: Advanced Features
+- [ ] GraphQL API for flexible querying
+- [ ] Real-time subscriptions (WebSocket)
+- [ ] Advanced full-text search (Elasticsearch)
+- [ ] Workflow engine (approval processes)
+- [ ] Analytics dashboard
+- [ ] Slack/Teams/JIRA integrations
+- [ ] AI-powered insights and recommendations
+- [ ] Decision templates marketplace
+- [ ] Multi-tenancy support
+- [ ] Advanced RBAC
+- [ ] API rate limiting
+- [ ] Webhook management UI
+
+### Phase 5: Enterprise
+- [ ] SSO/SAML integration
+- [ ] Advanced security (field-level encryption)
+- [ ] Compliance reporting (GDPR, SOC2)
+- [ ] Advanced analytics (BI integration)
+- [ ] Mobile apps (React Native)
+- [ ] Offline support
+- [ ] Multi-language support
+- [ ] White-label customization
 
 ## Contributing
 
-1. Create a feature branch
-2. Make your changes
-3. Add tests if applicable
-4. Submit a pull request
+Contributions welcome! This repository is designed for:
+- Bug fixes
+- Feature additions
+- Integration examples
+- Documentation improvements
+- Test coverage increases
 
 ## License
 
@@ -287,4 +501,11 @@ MIT
 
 ## Acknowledgments
 
-Built as a foundational component for organizational knowledge management and decision archaeology.
+Built as a production-ready building block for organizational knowledge management and decision archaeology in AI-driven ecosystems.
+
+---
+
+**Need help?** Check the [docs/](docs/) directory for:
+- [Architecture](docs/ARCHITECTURE.md)
+- [Integration Guide](docs/INTEGRATION.md)
+- [Phase 3 Overview](docs/PHASE3_OVERVIEW.md)

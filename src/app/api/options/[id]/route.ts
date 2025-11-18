@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { handleError, validateRequest } from '@/lib/errors'
+import { UpdateOptionSchema } from '@/lib/validation/schemas'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -13,25 +15,16 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { title, prosMarkdown, consMarkdown, chosen } = body
+    const validated = validateRequest(UpdateOptionSchema, body)
 
     const option = await prisma.decisionOption.update({
       where: { id },
-      data: {
-        title,
-        prosMarkdown,
-        consMarkdown,
-        chosen,
-      },
+      data: validated as any,
     })
 
     return NextResponse.json(option)
   } catch (error) {
-    console.error('Error updating option:', error)
-    return NextResponse.json(
-      { error: 'Failed to update option' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
@@ -48,10 +41,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting option:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete option' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

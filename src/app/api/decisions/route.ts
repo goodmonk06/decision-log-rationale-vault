@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { DecisionStatus } from '@prisma/client'
+import { handleError, validateRequest } from '@/lib/errors'
+import { CreateDecisionSchema, DecisionQuerySchema, CreateDecisionInput, DecisionQuery } from '@/lib/validation/schemas'
 
 // GET /api/decisions - List all decisions
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const search = searchParams.get('search')
-    const status = searchParams.get('status') as DecisionStatus | null
+    const queryParams = Object.fromEntries(searchParams.entries())
+
+    const { search, status, limit, offset } = validateRequest(
+      DecisionQuerySchema,
+      queryParams
+    ) as DecisionQuery
 
     const where: any = {}
 
@@ -31,15 +36,13 @@ export async function GET(request: NextRequest) {
       orderBy: {
         decidedAt: 'desc',
       },
+      take: limit || 50,
+      skip: offset || 0,
     })
 
     return NextResponse.json(decisions)
   } catch (error) {
-    console.error('Error fetching decisions:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch decisions' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
@@ -47,35 +50,28 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { title, descriptionMarkdown, decidedAt, status, metaJson, options, links } = body
-
-    if (!title) {
-      return NextResponse.json(
-        { error: 'Title is required' },
-        { status: 400 }
-      )
-    }
+    const validated = validateRequest(CreateDecisionSchema, body) as CreateDecisionInput
 
     const decision = await prisma.decision.create({
       data: {
-        title,
-        descriptionMarkdown,
-        decidedAt: decidedAt ? new Date(decidedAt) : undefined,
-        status: status || 'PROPOSED',
-        metaJson,
-        options: options ? {
-          create: options.map((opt: any) => ({
+        title: validated.title,
+        descriptionMarkdown: validated.descriptionMarkdown,
+        decidedAt: validated.decidedAt ? new Date(validated.decidedAt) : undefined,
+        status: validated.status || 'PROPOSED',
+        metaJson: validated.metaJson as any,
+        options: validated.options ? {
+          create: validated.options.map((opt) => ({
             title: opt.title,
             prosMarkdown: opt.prosMarkdown,
             consMarkdown: opt.consMarkdown,
             chosen: opt.chosen || false,
           }))
         } : undefined,
-        links: links ? {
-          create: links.map((link: any) => ({
+        links: validated.links ? {
+          create: validated.links.map((link) => ({
             entityType: link.entityType,
             entityIdOrRef: link.entityIdOrRef,
-            metaJson: link.metaJson,
+            metaJson: link.metaJson as any,
           }))
         } : undefined,
       },
@@ -87,10 +83,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(decision, { status: 201 })
   } catch (error) {
-    console.error('Error creating decision:', error)
-    return NextResponse.json(
-      { error: 'Failed to create decision' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

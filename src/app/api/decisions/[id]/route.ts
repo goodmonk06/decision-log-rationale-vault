@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { handleError, validateRequest, NotFoundError } from '@/lib/errors'
+import { UpdateDecisionSchema, UpdateDecisionInput } from '@/lib/validation/schemas'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -21,19 +23,12 @@ export async function GET(
     })
 
     if (!decision) {
-      return NextResponse.json(
-        { error: 'Decision not found' },
-        { status: 404 }
-      )
+      throw new NotFoundError('Decision')
     }
 
     return NextResponse.json(decision)
   } catch (error) {
-    console.error('Error fetching decision:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch decision' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
@@ -45,17 +40,18 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { title, descriptionMarkdown, decidedAt, status, metaJson } = body
+    const validated = validateRequest(UpdateDecisionSchema, body) as UpdateDecisionInput
+
+    const updateData: any = {}
+    if (validated.title !== undefined) updateData.title = validated.title
+    if (validated.descriptionMarkdown !== undefined) updateData.descriptionMarkdown = validated.descriptionMarkdown
+    if (validated.decidedAt !== undefined) updateData.decidedAt = new Date(validated.decidedAt)
+    if (validated.status !== undefined) updateData.status = validated.status
+    if (validated.metaJson !== undefined) updateData.metaJson = validated.metaJson
 
     const decision = await prisma.decision.update({
       where: { id },
-      data: {
-        title,
-        descriptionMarkdown,
-        decidedAt: decidedAt ? new Date(decidedAt) : undefined,
-        status,
-        metaJson,
-      },
+      data: updateData,
       include: {
         options: true,
         links: true,
@@ -64,11 +60,7 @@ export async function PUT(
 
     return NextResponse.json(decision)
   } catch (error) {
-    console.error('Error updating decision:', error)
-    return NextResponse.json(
-      { error: 'Failed to update decision' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
@@ -85,10 +77,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting decision:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete decision' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

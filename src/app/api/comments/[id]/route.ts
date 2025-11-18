@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { handleError, validateRequest } from '@/lib/errors'
-import { UpdateLinkSchema } from '@/lib/validation/schemas'
+import { UpdateCommentSchema, UpdateCommentInput } from '@/lib/validation/comment-schemas'
+import * as commentService from '@/lib/services/comments'
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-// PUT /api/links/[id] - Update a link
+// PUT /api/comments/[id] - Update a comment
 export async function PUT(
   request: NextRequest,
   { params }: RouteParams
@@ -15,30 +15,23 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const validated = validateRequest(UpdateLinkSchema, body)
+    const validated = validateRequest(UpdateCommentSchema, body) as UpdateCommentInput
 
-    const link = await prisma.decisionLink.update({
-      where: { id },
-      data: validated as any,
-    })
-
-    return NextResponse.json(link)
+    const comment = await commentService.updateComment(id, validated.content)
+    return NextResponse.json(comment)
   } catch (error) {
     return handleError(error)
   }
 }
 
-// DELETE /api/links/[id] - Delete a link
+// DELETE /api/comments/[id] - Delete a comment
 export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
 ) {
   try {
     const { id } = await params
-    await prisma.decisionLink.delete({
-      where: { id },
-    })
-
+    await commentService.deleteComment(id)
     return NextResponse.json({ success: true })
   } catch (error) {
     return handleError(error)
