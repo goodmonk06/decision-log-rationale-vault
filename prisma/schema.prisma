@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DecisionStatus {
+  PROPOSED
+  DECIDED
+  DEPRECATED
+}
+
+enum EntityType {
+  PROJECT
+  PERSON
+  REPO
+  OTHER
+}
+
+model Decision {
+  id                 String           @id @default(cuid())
+  title              String
+  descriptionMarkdown String?         @db.Text
+  decidedAt          DateTime         @default(now())
+  status             DecisionStatus   @default(PROPOSED)
+  metaJson           Json?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  options            DecisionOption[]
+  links              DecisionLink[]
+
+  @@index([decidedAt])
+  @@index([status])
+}
+
+model DecisionOption {
+  id              String   @id @default(cuid())
+  decisionId      String
+  title           String
+  prosMarkdown    String?  @db.Text
+  consMarkdown    String?  @db.Text
+  chosen          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  decision        Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@index([decisionId])
+}
+
+model DecisionLink {
+  id              String     @id @default(cuid())
+  decisionId      String
+  entityType      EntityType
+  entityIdOrRef   String
+  metaJson        Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  decision        Decision   @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@index([decisionId])
+  @@index([entityType, entityIdOrRef])
+}
